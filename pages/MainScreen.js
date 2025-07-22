@@ -8,6 +8,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { jwtDecode } from "jwt-decode";
 import BottomTabBar from "../components/BottomTabBar";
 import TabContent from "../components/TabContent";
+import tabs from "../utils/tabsConfig";
 
 export default function MainScreen() {
   const [showSplashScreen, setShowSplashScreen] = useState(true);
@@ -21,7 +22,7 @@ export default function MainScreen() {
         const value = await AsyncStorage.getItem("token");
         if (value) {
           const decode = jwtDecode(value);
-          setLoginDetails(true, value, decode.id, decode.role);
+          setLoginDetails(true, value, decode.id);
         } else {
           setLoginDetails(false, "value", undefined);
         }
@@ -40,44 +41,6 @@ export default function MainScreen() {
       ...(!isLoggedIn && { backgroundColor: "#fff" }),
     },
   });
-
-  const tabs = [
-    {
-      key: "transactions",
-      label: "Transactions",
-      icon: (color) => (
-        <Image source={require("../assets/Transaction_Icon.png")} style={{ width: 24, height: 24, tintColor: color }} />
-      ),
-    },
-    {
-      key: "authorise",
-      label: "Accountant",
-      icon: (color) => (
-        <Image source={require("../assets/Authorize_Icon.png")} style={{ width: 24, height: 24, tintColor: color }} />
-      ),
-    },
-    {
-      key: "bin",
-      label: "Bin",
-      icon: (color) => (
-        <Image source={require("../assets/Bin_Icon.png")} style={{ width: 24, height: 24, tintColor: color }} />
-      ),
-    },
-    {
-      key: "profile",
-      label: "Profile",
-      icon: (color) => (
-        <Image source={require("../assets/user.png")} style={{ width: 24, height: 24, tintColor: color }} />
-      ),
-    },
-    {
-      key: "report",
-      label: "Report",
-      icon: (color) => (
-        <Image source={require("../assets/icons8-reports-50.png")} style={{ width: 24, height: 24, tintColor: color }} />
-      ),
-    },
-  ];
 
   return showSplashScreen ? (
     <SplashScreen />
