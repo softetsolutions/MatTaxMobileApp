@@ -12,6 +12,8 @@ import { updateCategory } from "../api/categories";
 import { updateVendor } from "../api/vendors";
 import { updateAccount } from "../api/accounts";
 import { updateSubcategory } from "../api/subcategories";
+import ReceiptUploader from "./ReceiptUploader";
+import { extractReceiptData } from "../api/receipts";
 
 export default function AddTransactionModal({
   visible,
@@ -51,6 +53,8 @@ export default function AddTransactionModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [vatMode, setVatMode] = useState("amount");
+  const [receiptImage, setReceiptImage] = useState(null);
+  const [extracting, setExtracting] = useState(false);
 
   // state for editing
   const [editingCategory, setEditingCategory] = useState(false);
@@ -124,6 +128,7 @@ export default function AddTransactionModal({
     setInvoiceDate(new Date());
     setInvoiced(false)
     setVendor("")
+    setReceiptImage(null);
   }
 
   const handleClose = () => {
@@ -172,27 +177,41 @@ export default function AddTransactionModal({
           vat_gst_amount = totalAmount ? Number((Number(totalAmount) * Number(vatPercent) / 100).toFixed(2)) : null;
         }
       }
-      const transactionData = {
-        accountNo: accountId,
-        amount: totalAmount ? Number(totalAmount) : null,
-        amount_bank: bankAmount ? Number(bankAmount) : null,
-        amount_cash: cashAmount ? Number(cashAmount) : null,
-        amount_creditcard: creditCardAmount ? Number(creditCardAmount) : null,
-        category: categoryId,
-        desc3: details || null,
-        invoice_amount: invoiceAmount ? Number(invoiceAmount) : null,
-        invoice_date: invoiceDate instanceof Date ? invoiceDate.toISOString() : null,
-        isInvoiced: invoiced === true ? 'yes' : invoiced === false ? 'no' : null,
-        sub_category1: subcategoryId,
-        type: type === "in" ? "moneyIn" : "moneyOut",
-        userId: userId,
-        vat_gst_amount,
-        vat_gst_percentage,
-        vendorId: vendorId,
-        isDeleted: false,
-      };
-      await addTransaction(transactionData, token, userId);
-      if (onSubmit) onSubmit(transactionData);
+      // Prepare FormData for file upload
+      const formData = new FormData();
+      formData.append("accountNo", accountId);
+      formData.append("amount", isNaN(Number(totalAmount)) ? 0 : Number(totalAmount));
+      formData.append("amount_bank", isNaN(Number(bankAmount)) ? 0 : Number(bankAmount));
+      formData.append("amount_cash", isNaN(Number(cashAmount)) ? 0 : Number(cashAmount));
+      formData.append("amount_creditcard", isNaN(Number(creditCardAmount)) ? 0 : Number(creditCardAmount));
+      formData.append("category", categoryId);
+      formData.append("desc3", details || "");
+      formData.append("invoice_amount", isNaN(Number(invoiceAmount)) ? 0 : Number(invoiceAmount));
+      formData.append("invoice_date", invoiceDate instanceof Date ? invoiceDate.toISOString() : "");
+      formData.append("isInvoiced", invoiced === true ? 'yes' : invoiced === false ? 'no' : "");
+      formData.append("sub_category1", subcategoryId);
+      formData.append("type", type === "in" ? "moneyIn" : "moneyOut");
+      formData.append("userId", userId);
+      if (vatEnabled) {
+        if (vatMode === "amount" && vatAmount) {
+          formData.append("vat_gst_amount", Number(vatAmount));
+        } else if (vatMode === "percent" && vatPercent) {
+          formData.append("vat_gst_percentage", Number(vatPercent));
+          formData.append("vat_gst_amount", totalAmount ? Number((Number(totalAmount) * Number(vatPercent) / 100).toFixed(2)) : "");
+        }
+      }
+      formData.append("vendorId", vendorId);
+      formData.append("isDeleted", false);
+      if (receiptImage && receiptImage.uri) {
+        const fileName = receiptImage.fileName || receiptImage.uri.split("/").pop();
+        formData.append("file", {
+          uri: receiptImage.uri,
+          name: fileName,
+          type: receiptImage.mimeType || "image/jpeg",
+        });
+      }
+      await addTransaction(formData, token, userId, true);
+      if (onSubmit) onSubmit({});
       resetForm();
       onClose();
     } catch (err) {
@@ -274,11 +293,114 @@ export default function AddTransactionModal({
     }
   };
 
+  const handleExtractReceiptData = async () => {
+    if (!receiptImage) return;
+    setExtracting(true);
+    try {
+      const file = {
+        uri: receiptImage.uri,
+        name: receiptImage.fileName || receiptImage.uri.split("/").pop(),
+        type: receiptImage.mimeType || "image/jpeg",
+      };
+      const result = await extractReceiptData(file, token);
+      console.log("AI Extracted Receipt Data:", result);
+      // mapping
+      if (result.amount !== undefined) setCashAmount(result.amount.toString());
+      // CATEGORY
+      if (result.category && result.category !== "Unknown") {
+        setCategory(result.category);
+        let found = categories.find(c => c.name === result.category);
+        if (found) {
+          setSelectedCategory(found);
+        } else {
+          try {
+            const newCategory = await addCategory(result.category, token, userId);
+            setSelectedCategory(newCategory);
+            setCategory(newCategory.name);
+            if (setCategories) setCategories([...categories, newCategory]);
+          } catch (err) {
+            setError("Failed to create new category: " + err.message);
+          }
+        }
+      }
+      // SUBCATEGORY
+      if (result.subcategory && result.subcategory !== "Unknown") {
+        setSubcategory(result.subcategory);
+        let found = subcategoryOptions.find(s => s.name === result.subcategory);
+        if (found && selectedCategory) {
+          setSelectedSubcategory(found);
+        } else if (selectedCategory) {
+          try {
+            const newSubcat = await addSubcategory(result.subcategory, selectedCategory.id, token);
+            setSelectedSubcategory(newSubcat);
+            setSubcategory(newSubcat.name);
+            setSubcategoryOptions([...subcategoryOptions, newSubcat]);
+            if (setSubcategoryMap) setSubcategoryMap(prev => ({ ...prev, [newSubcat.id]: newSubcat.name }));
+          } catch (err) {
+            setError("Failed to create new subcategory: " + err.message);
+          }
+        }
+      }
+      // VENDOR
+      if (result.vendor && result.vendor !== "Unknown") {
+        setVendor(result.vendor);
+        let found = vendors.find(v => v.name === result.vendor);
+        if (found) {
+          setSelectedVendor(found);
+        } else {
+          try {
+            const newVendor = await addVendor(result.vendor, token, userId);
+            setSelectedVendor(newVendor);
+            setVendor(newVendor.name);
+            if (setVendors) setVendors([...vendors, newVendor]);
+          } catch (err) {
+            setError("Failed to create new vendor: " + err.message);
+          }
+        }
+      }
+      // ACCOUNT
+      if (result.account && result.account !== "Unknown") {
+        setAccount(result.account);
+        let found = accounts.find(a => a.accountNo === result.account);
+        if (found) {
+          setSelectedAccount(found);
+        } else {
+          try {
+            const newAccount = await addAccount(result.account, token, userId);
+            setSelectedAccount(newAccount);
+            setAccount(newAccount.accountNo);
+            if (setAccounts) setAccounts([...accounts, newAccount]);
+          } catch (err) {
+            setError("Failed to create new account: " + err.message);
+          }
+        }
+      }
+      if (result.desc1) setDetails(result.desc1);
+      if (result.desc2 || result.desc3) {
+        setDetails(prev => [prev, result.desc2, result.desc3].filter(Boolean).join(" | "));
+      }
+      if (result.invoice_date) setInvoiceDate(new Date(result.invoice_date));
+      if (result.type) setType(result.type.toLowerCase() === "debit" ? "out" : "in");
+    } catch (err) {
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
       <View style={styles.modalContent}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <Text style={styles.title}>Add Transaction</Text>
+          <Text style={styles.receiptSectionLabel}>Receipt Upload</Text>
+          <View style={styles.receiptDivider} />
+          <View style={styles.receiptCard}>
+            <ReceiptUploader
+              receiptImage={receiptImage}
+              setReceiptImage={setReceiptImage}
+              onExtractReceiptData={extracting ? undefined : handleExtractReceiptData}
+              extracting={extracting}
+            />
+          </View>
 
           {/* Transaction Type */}
           <View style={styles.row}>
@@ -471,8 +593,17 @@ export default function AddTransactionModal({
             <TouchableOpacity onPress={handleClose} style={styles.cancelButton}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleSubmit} style={styles.submitButton} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Submit</Text>}
+            <TouchableOpacity onPress={handleSubmit} style={styles.submitButton} disabled={loading || extracting}>
+              {(loading || extracting) ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                  <ActivityIndicator color="#fff" />
+                  <Text style={[styles.submitText, { marginLeft: 8 }]}>
+                    {extracting ? "Extracting..." : "Loading..."}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.submitText}>Submit</Text>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -599,5 +730,32 @@ const styles = StyleSheet.create({
   vatToggleTextSelected: {
     color: "#fff",
     fontWeight: "bold",
+  },
+  receiptSectionLabel: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1976d2",
+    marginBottom: 4,
+    marginTop: 8,
+    textAlign: "left",
+    letterSpacing: 0.2,
+    paddingLeft: 2,
+  },
+  receiptDivider: {
+    height: 2,
+    backgroundColor: "#e3e8f0",
+    marginBottom: 12,
+    borderRadius: 2,
+  },
+  receiptCard: {
+    backgroundColor: "#f8fafd",
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
 }) 

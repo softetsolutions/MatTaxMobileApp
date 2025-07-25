@@ -18,16 +18,19 @@ export async function fetchTransactions(token, userId, page = 1, limit = 10) {
   }
 }
 
-export async function addTransaction(data, token, userId) {
-  console.log('Sending transaction data:', data);
+export async function addTransaction(data, token, userId, isFormData = false) {
+  console.log("Sending transaction data:", data);
+  const headers = isFormData
+    ? { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+    : {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
   const res = await fetch(`${URI}/transaction?userId=${userId}`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(data),
+    headers,
+    body: isFormData ? data : JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Failed to add transaction");
   return await res.json();
-} 
+}
