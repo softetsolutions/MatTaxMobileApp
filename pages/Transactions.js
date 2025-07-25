@@ -10,6 +10,7 @@ import { fetchSubcategories } from "../api/subcategories";
 import useLoginStore from "../store/store";
 import { formatDate } from "../utils/date";
 import Loader from "../components/Loader";
+import AddTransactionModal from "../components/AddTransactionModal";
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
@@ -28,57 +29,59 @@ export default function Transactions() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [totalItems, setTotalItems] = useState(0);
+  const [addModalVisible, setAddModalVisible] = useState(false);
   const token = useLoginStore((state) => state.token);
   const userId = useLoginStore((state) => state.id);
 
-  useEffect(() => {
-    const getData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // Fetch categories
-        const cats = await fetchCategories(token, userId);
-        setCategories(cats);
-        const catMap = Object.fromEntries(cats.map(cat => [cat.id, cat.name]));
-        setCategoryMap(catMap);
+  const getData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Fetch categories
+      const cats = await fetchCategories(token, userId);
+      setCategories(cats);
+      const catMap = Object.fromEntries(cats.map(cat => [cat.id, cat.name]));
+      setCategoryMap(catMap);
 
-        // Fetch subcategories for each category
-        const subcatMap = {};
-        for (const cat of cats) {
-          try {
-            const subcats = await fetchSubcategories(token, cat.id);
-            subcats.forEach(subcat => {
-              subcatMap[subcat.id] = subcat.name;
-            });
-          } catch (err) {
-          }
+      // Fetch subcategories for each category
+      const subcatMap = {};
+      for (const cat of cats) {
+        try {
+          const subcats = await fetchSubcategories(token, cat.id);
+          subcats.forEach(subcat => {
+            subcatMap[subcat.id] = subcat.name;
+          });
+        } catch (err) {
         }
-        setSubcategoryMap(subcatMap);
-
-        // Fetch vendors
-        const vends = await fetchVendors(token, userId);
-        setVendors(vends);
-        const vendMap = Object.fromEntries(vends.map(vend => [vend.id, vend.name]));
-        setVendorMap(vendMap);
-
-        // Fetch accounts
-        const accs = await fetchAccounts(token, userId);
-        setAccounts(accs);
-        const accMap = Object.fromEntries(accs.map(acc => [acc.id, acc.accountNo]));
-        setAccountMap(accMap);
-
-        // Fetch first page of transactions
-        const data = await fetchTransactions(token, userId, 1, 10);
-        setTransactions(data.transactions || data);
-        setTotalItems(data.totalItems || (data.transactions || data).length);
-        setPage(1);
-        setHasMore((data.transactions || data).length === 10);
-      } catch (err) {
-        setError(err.message || "Failed to load data");
-      } finally {
-        setLoading(false);
       }
-    };
+      setSubcategoryMap(subcatMap);
+
+      // Fetch vendors
+      const vends = await fetchVendors(token, userId);
+      setVendors(vends);
+      const vendMap = Object.fromEntries(vends.map(vend => [vend.id, vend.name]));
+      setVendorMap(vendMap);
+
+      // Fetch accounts
+      const accs = await fetchAccounts(token, userId);
+      setAccounts(accs);
+      const accMap = Object.fromEntries(accs.map(acc => [acc.id, acc.accountNo]));
+      setAccountMap(accMap);
+
+      // Fetch first page of transactions
+      const data = await fetchTransactions(token, userId, 1, 10);
+      setTransactions(data.transactions || data);
+      setTotalItems(data.totalItems || (data.transactions || data).length);
+      setPage(1);
+      setHasMore((data.transactions || data).length === 10);
+    } catch (err) {
+      setError(err.message || "Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (token && userId) getData();
   }, [token, userId]);
 
@@ -117,6 +120,12 @@ export default function Transactions() {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => setAddModalVisible(true)}
+      >
+        <Text style={styles.fabText}>+</Text>
+      </TouchableOpacity>
       <Text style={styles.title}>Transactions</Text>
       <Text style={styles.countText}>{totalItems} transaction{totalItems === 1 ? '' : 's'} found</Text>
       {loading ? (
@@ -156,6 +165,25 @@ export default function Transactions() {
         subcategoryMap={subcategoryMap}
         token={token}
       />
+      {/* Add Transaction Modal */}
+      <AddTransactionModal
+        visible={addModalVisible}
+        onClose={() => setAddModalVisible(false)}
+        accounts={accounts}
+        setAccounts={setAccounts} 
+        categories={categories}
+        setCategories={setCategories} 
+        subcategories={Object.entries(subcategoryMap).map(([id, name]) => ({ id, name }))}
+        setSubcategoryMap={setSubcategoryMap}
+        vendors={vendors}
+        setVendors={setVendors}
+        token={token}
+        userId={userId}
+        onSubmit={async () => {
+          setAddModalVisible(false);
+          await getData();
+        }}
+      />
     </View>
   );
 }
@@ -179,5 +207,28 @@ const styles = StyleSheet.create({
     color: '#555',
     marginLeft: 6,
     marginBottom: 8,
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 80,
+    backgroundColor: '#1976d2',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  fabText: {
+    color: '#fff',
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 2,
   },
 }); 

@@ -22,4 +22,30 @@ export async function getAccountById(token, accountId) {
   });
   if (!res.ok) throw new Error("Failed to fetch account");
   return await res.json();
+}
+
+export async function addAccount(accountNo, token, userId) {
+  const res = await fetch(`${URI}/accountNo/create`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ accountNo, userId }),
+  });
+  if (!res.ok) throw new Error("Failed to create account");
+  return await res.json();
+}
+
+export async function updateAccount(id, accountNo, token) {
+  const res = await fetch(`${URI}/accountNo/update/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ accountNo }),
+  });
+  if (!res.ok) throw new Error("Failed to update account");
+  return await res.json();
 } 

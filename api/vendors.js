@@ -22,4 +22,30 @@ export async function getVendorById(token, vendorId) {
   });
   if (!res.ok) throw new Error("Failed to fetch vendor");
   return await res.json();
+}
+
+export async function addVendor(name, token, userId) {
+  const res = await fetch(`${URI}/vendor/create`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ name, userId }),
+  });
+  if (!res.ok) throw new Error("Failed to create vendor");
+  return await res.json();
+}
+
+export async function updateVendor(id, name, token) {
+  const res = await fetch(`${URI}/vendor/update/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw new Error("Failed to update vendor");
+  return await res.json();
 } 

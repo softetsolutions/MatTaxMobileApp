@@ -1,0 +1,603 @@
+import { useState, useEffect } from "react"
+import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Switch, Platform, ActivityIndicator } from "react-native"
+import SearchableInputModal from "./SearchableInputModal"
+import { fetchSubcategoriesByCategoryId } from "../api/subcategories"
+import { addTransaction } from "../api/transactions"
+import DateTimePicker from "@react-native-community/datetimepicker"
+import { addCategory } from "../api/categories";
+import { addSubcategory } from "../api/subcategories";
+import { addVendor } from "../api/vendors";
+import { addAccount } from "../api/accounts";
+import { updateCategory } from "../api/categories";
+import { updateVendor } from "../api/vendors";
+import { updateAccount } from "../api/accounts";
+import { updateSubcategory } from "../api/subcategories";
+
+export default function AddTransactionModal({
+  visible,
+  onClose,
+  onSubmit,
+  accounts,
+  setAccounts,
+  categories,
+  setCategories,
+  setSubcategoryMap,
+  vendors,
+  setVendors,
+  token,
+  userId,
+}) {
+  const [type, setType] = useState("in")
+  const [details, setDetails] = useState("")
+  const [cashAmount, setCashAmount] = useState("")
+  const [bankAmount, setBankAmount] = useState("")
+  const [creditCardAmount, setCreditCardAmount] = useState("")
+  const [vatEnabled, setVatEnabled] = useState(false)
+  const [vatAmount, setVatAmount] = useState("")
+  const [vatPercent, setVatPercent] = useState("20");
+  const [category, setCategory] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [account, setAccount] = useState("");
+  const [selectedAccount, setSelectedAccount] = useState(null);
+  const [subcategory, setSubcategory] = useState("");
+  const [selectedSubcategory, setSelectedSubcategory] = useState(null);
+  const [invoiceAmount, setInvoiceAmount] = useState("")
+  const [invoiceDate, setInvoiceDate] = useState(new Date());
+  const [invoiced, setInvoiced] = useState(false)
+  const [vendor, setVendor] = useState("");
+  const [selectedVendor, setSelectedVendor] = useState(null);
+  const [subcategoryOptions, setSubcategoryOptions] = useState([]);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [vatMode, setVatMode] = useState("amount");
+
+  // state for editing
+  const [editingCategory, setEditingCategory] = useState(false);
+  const [editCategoryValue, setEditCategoryValue] = useState("");
+  const [editingVendor, setEditingVendor] = useState(false);
+  const [editVendorValue, setEditVendorValue] = useState("");
+  const [editingAccount, setEditingAccount] = useState(false);
+  const [editAccountValue, setEditAccountValue] = useState("");
+  const [editingSubcategory, setEditingSubcategory] = useState(false);
+  const [editSubcategoryValue, setEditSubcategoryValue] = useState("");
+
+  // Always recalculate options from latest state before rendering
+  const accountOptions = accounts.map((a) => a.accountNo);
+  const categoryOptions = categories.map((c) => c.name);
+  const vendorOptions = vendors.map((v) => v.name);
+  const subcategoryOptionsList = subcategoryOptions.map((s) => s.name);
+
+  const handleCategoryChange = (newCategory) => {
+    setCategory(newCategory);
+    const found = categories.find((c) => c.name === newCategory);
+    setSelectedCategory(found || null);
+    setSubcategory("");
+    setSelectedSubcategory(null);
+  };
+  const handleAccountChange = (newAccount) => {
+    setAccount(newAccount);
+    const found = accounts.find((a) => a.accountNo === newAccount);
+    setSelectedAccount(found || null);
+  };
+  const handleSubcategoryChange = (newSubcat) => {
+    setSubcategory(newSubcat);
+    const found = (Array.isArray(subcategoryOptions) ? subcategoryOptions : []).find((s) => s.name === newSubcat);
+    setSelectedSubcategory(found || null);
+  };
+  const handleVendorChange = (newVendor) => {
+    setVendor(newVendor);
+    const found = vendors.find((v) => v.name === newVendor);
+    setSelectedVendor(found || null);
+  };
+
+  // Fetch subcategories when category changes 
+  useEffect(() => {
+    if (selectedCategory) {
+      fetchSubcategoriesByCategoryId(selectedCategory.id, token).then((subcats) => {
+        setSubcategoryOptions(subcats);
+      });
+    } else {
+      setSubcategoryOptions([]);
+    }
+    setSubcategory("");
+    setSelectedSubcategory(null);
+  }, [selectedCategory, categories, token]);
+
+  const totalAmount =
+    (Number.parseFloat(cashAmount) || 0) +
+    (Number.parseFloat(bankAmount) || 0) +
+    (Number.parseFloat(creditCardAmount) || 0)
+
+  const resetForm = () => {
+    setType("in")
+    setDetails("")
+    setCashAmount("")
+    setBankAmount("")
+    setCreditCardAmount("")
+    setVatEnabled(false)
+    setVatAmount("")
+    setVatPercent("20")
+    setCategory("")
+    setSubcategory("")
+    setInvoiceAmount("")
+    setInvoiceDate(new Date());
+    setInvoiced(false)
+    setVendor("")
+  }
+
+  const handleClose = () => {
+    resetForm()
+    onClose()
+  }
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      let categoryId = selectedCategory ? selectedCategory.id : null;
+      let vendorId = selectedVendor ? selectedVendor.id : null;
+      let accountId = selectedAccount ? selectedAccount.id : null;
+      let subcategoryId = selectedSubcategory ? selectedSubcategory.id : null;
+
+      // 1. Create custom category if needed
+      if (!categoryId && category) {
+        const newCategory = await addCategory(category, token, userId);
+        categoryId = newCategory.id;
+      }
+      // 2. Create custom vendor if needed
+      if (!vendorId && vendor) {
+        const newVendor = await addVendor(vendor, token, userId);
+        vendorId = newVendor.id;
+      }
+      // 3. Create custom account if needed
+      if (!accountId && account) {
+        const newAccount = await addAccount(account, token, userId);
+        accountId = newAccount.id;
+      }
+      // 4. Create custom subcategory if needed
+      if (!subcategoryId && subcategory && categoryId) {
+        const newSubcat = await addSubcategory(subcategory, categoryId, token);
+        subcategoryId = newSubcat.id;
+      }
+
+      let vat_gst_amount = null;
+      let vat_gst_percentage = null;
+      if (vatEnabled) {
+        if (vatMode === "amount" && vatAmount) {
+          vat_gst_amount = Number(vatAmount);
+          vat_gst_percentage = null;
+        } else if (vatMode === "percent" && vatPercent) {
+          vat_gst_percentage = Number(vatPercent);
+          vat_gst_amount = totalAmount ? Number((Number(totalAmount) * Number(vatPercent) / 100).toFixed(2)) : null;
+        }
+      }
+      const transactionData = {
+        accountNo: accountId,
+        amount: totalAmount ? Number(totalAmount) : null,
+        amount_bank: bankAmount ? Number(bankAmount) : null,
+        amount_cash: cashAmount ? Number(cashAmount) : null,
+        amount_creditcard: creditCardAmount ? Number(creditCardAmount) : null,
+        category: categoryId,
+        desc3: details || null,
+        invoice_amount: invoiceAmount ? Number(invoiceAmount) : null,
+        invoice_date: invoiceDate instanceof Date ? invoiceDate.toISOString() : null,
+        isInvoiced: invoiced === true ? 'yes' : invoiced === false ? 'no' : null,
+        sub_category1: subcategoryId,
+        type: type === "in" ? "moneyIn" : "moneyOut",
+        userId: userId,
+        vat_gst_amount,
+        vat_gst_percentage,
+        vendorId: vendorId,
+        isDeleted: false,
+      };
+      await addTransaction(transactionData, token, userId);
+      if (onSubmit) onSubmit(transactionData);
+      resetForm();
+      onClose();
+    } catch (err) {
+      setError(err.message || "Failed to add transaction");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // functions to get editable options and handle edit for each dropdown
+  const categoryNames = categories.map(c => c.name);
+  const vendorNames = vendors.map(v => v.name);
+  const accountNames = accounts.map(a => a.accountNo);
+  const subcategoryNames = subcategoryOptions.map(s => s.name);
+
+  const handleEditCategoryOption = async (oldName, newName) => {
+    const cat = categories.find(c => c.name === oldName);
+    if (cat) {
+      try {
+        await updateCategory(cat.id, newName, token);
+        setCategory(newName);
+        setSelectedCategory({ ...cat, name: newName });
+        if (setCategories) {
+          setCategories(categories.map(c => c.id === cat.id ? { ...c, name: newName } : c));
+        }
+        setError("");
+      } catch (err) {
+        setError(err.message || "Failed to update category");
+      }
+    }
+  };
+  const handleEditVendorOption = async (oldName, newName) => {
+    const vend = vendors.find(v => v.name === oldName);
+    if (vend) {
+      try {
+        await updateVendor(vend.id, newName, token);
+        setVendor(newName);
+        setSelectedVendor({ ...vend, name: newName });
+        if (setVendors) {
+          setVendors(vendors.map(v => v.id === vend.id ? { ...v, name: newName } : v));
+        }
+        setError("");
+      } catch (err) {
+        setError(err.message || "Failed to update vendor");
+      }
+    }
+  };
+  const handleEditAccountOption = async (oldName, newName) => {
+    const acc = accounts.find(a => a.accountNo === oldName);
+    if (acc) {
+      try {
+        await updateAccount(acc.id, newName, token);
+        setAccount(newName);
+        setSelectedAccount({ ...acc, accountNo: newName });
+        if (setAccounts) {
+          setAccounts(accounts.map(a => a.id === acc.id ? { ...a, accountNo: newName } : a));
+        }
+        setError("");
+      } catch (err) {
+        setError(err.message || "Failed to update account");
+      }
+    }
+  };
+  const handleEditSubcategoryOption = async (oldName, newName) => {
+    const subcat = subcategoryOptions.find(s => s.name === oldName);
+    if (subcat && selectedCategory) {
+      try {
+        await updateSubcategory(subcat.id, newName, selectedCategory.id, token);
+        setSubcategory(newName);
+        setSelectedSubcategory({ ...subcat, name: newName });
+        setSubcategoryOptions(subcategoryOptions.map(s => s.id === subcat.id ? { ...s, name: newName } : s));
+        if (setSubcategoryMap) {
+          setSubcategoryMap(prev => ({ ...prev, [subcat.id]: newName }));
+        }
+        setError("");
+      } catch (err) {
+        setError(err.message || "Failed to update subcategory");
+      }
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
+      <View style={styles.modalContent}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <Text style={styles.title}>Add Transaction</Text>
+
+          {/* Transaction Type */}
+          <View style={styles.row}>
+            <TouchableOpacity
+              onPress={() => setType("in")}
+              style={[styles.typeButton, type === "in" && styles.selected]}
+            >
+              <Text style={type === "in" ? styles.selectedText : styles.typeButtonText}>Money In</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setType("out")}
+              style={[styles.typeButton, type === "out" && styles.selected]}
+            >
+              <Text style={type === "out" ? styles.selectedText : styles.typeButtonText}>Money Out</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Transaction Details */}
+          <Text style={styles.label}>Transaction Details</Text>
+          <TextInput placeholder="Enter Detail" value={details} onChangeText={setDetails} style={styles.input} />
+
+          {/* Account Number */}
+          <SearchableInputModal
+            label="Account Number"
+            value={account}
+            onChange={handleAccountChange}
+            options={accountOptions}
+            placeholder="Search or type account number"
+            editableOptions={accountNames}
+            onEditOption={handleEditAccountOption}
+          />
+
+          {/* Amount Fields */}
+          <Text style={styles.label}>Cash Amount</Text>
+          <TextInput
+            placeholder="Enter Cash Amount"
+            value={cashAmount}
+            onChangeText={setCashAmount}
+            keyboardType="numeric"
+            style={styles.input}
+          />
+
+          <Text style={styles.label}>Bank Amount</Text>
+          <TextInput
+            placeholder="Enter Bank Amount"
+            value={bankAmount}
+            onChangeText={setBankAmount}
+            keyboardType="numeric"
+            style={styles.input}
+          />
+
+          <Text style={styles.label}>Credit Card Amount</Text>
+          <TextInput
+            placeholder="Enter Credit Card Amount"
+            value={creditCardAmount}
+            onChangeText={setCreditCardAmount}
+            keyboardType="numeric"
+            style={styles.input}
+          />
+
+          {/* Total Amount */}
+          <Text style={styles.label}>Total Amount</Text>
+          <Text style={styles.totalAmount}>{totalAmount.toFixed(2)}</Text>
+
+          {/* VAT Options */}
+          <View style={styles.row}>
+            <Text style={styles.label}>VAT</Text>
+            <Switch value={vatEnabled} onValueChange={setVatEnabled} />
+          </View>
+
+          {vatEnabled && (
+            <>
+              <View style={{ flexDirection: "row", marginBottom: 12 }}>
+                <TouchableOpacity
+                  style={[
+                    styles.vatToggleButton,
+                    vatMode === "amount" && styles.vatToggleSelected,
+                  ]}
+                  onPress={() => {
+                    setVatMode("amount");
+                    setVatPercent("");
+                  }}
+                >
+                  <Text style={vatMode === "amount" ? styles.vatToggleTextSelected : styles.vatToggleText}>VAT Amount</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.vatToggleButton,
+                    vatMode === "percent" && styles.vatToggleSelected,
+                  ]}
+                  onPress={() => {
+                    setVatMode("percent");
+                    setVatAmount("");
+                  }}
+                >
+                  <Text style={vatMode === "percent" ? styles.vatToggleTextSelected : styles.vatToggleText}>VAT %</Text>
+                </TouchableOpacity>
+              </View>
+              {vatMode === "amount" && (
+                <TextInput
+                  placeholder="Enter VAT amount"
+                  value={vatAmount}
+                  onChangeText={setVatAmount}
+                  keyboardType="numeric"
+                  style={styles.input}
+                />
+              )}
+              {vatMode === "percent" && (
+                <TextInput
+                  placeholder="Enter VAT percentage"
+                  value={vatPercent}
+                  onChangeText={setVatPercent}
+                  keyboardType="numeric"
+                  style={styles.input}
+                />
+              )}
+            </>
+          )}
+
+          {/* Category */}
+          <SearchableInputModal
+            label="Category"
+            value={category}
+            onChange={handleCategoryChange}
+            options={categoryOptions}
+            placeholder="Search or type category name"
+            editableOptions={categoryNames}
+            onEditOption={handleEditCategoryOption}
+          />
+
+          {/* Sub Category */}
+          <SearchableInputModal
+            label="Sub Category"
+            value={subcategory}
+            onChange={handleSubcategoryChange}
+            options={category ? subcategoryOptionsList : []}
+            placeholder={category ? "Search or type subcategory name" : "Please select a category first"}
+            editableOptions={subcategoryNames}
+            onEditOption={handleEditSubcategoryOption}
+          />
+
+          {/* Invoice Amount */}
+          <Text style={styles.label}>Invoice Amount</Text>
+          <TextInput
+            placeholder="Enter invoice Amount"
+            value={invoiceAmount}
+            onChangeText={setInvoiceAmount}
+            keyboardType="numeric"
+            style={styles.input}
+          />
+
+          {/* Invoice Date */}
+          <Text style={styles.label}>Invoice Date</Text>
+          <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.input}>
+            <Text>{invoiceDate ? invoiceDate.toLocaleDateString() : 'Select date'}</Text>
+          </TouchableOpacity>
+          {showDatePicker && (
+            <DateTimePicker
+              value={invoiceDate || new Date()}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(Platform.OS === 'ios');
+                if (selectedDate) setInvoiceDate(selectedDate);
+              }}
+            />
+          )}
+
+          {/* Invoiced */}
+          <View style={styles.row}>
+            <Text style={styles.label}>Invoiced</Text>
+            <Switch value={invoiced} onValueChange={setInvoiced} />
+          </View>
+
+          {/* Vendor */}
+          <SearchableInputModal
+            label="Vendor"
+            value={vendor}
+            onChange={handleVendorChange}
+            options={vendorOptions}
+            placeholder="Search or type vendor name"
+            editableOptions={vendorNames}
+            onEditOption={handleEditVendorOption}
+          />
+
+          {error && <Text style={{ color: 'red', marginBottom: 10 }}>{error}</Text>}
+
+          {/* Buttons */}
+          <View style={styles.buttonRow}>
+            <TouchableOpacity onPress={handleClose} style={styles.cancelButton}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleSubmit} style={styles.submitButton} disabled={loading}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Submit</Text>}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
+    </Modal>
+  )
+}
+
+const styles = StyleSheet.create({
+  modalContent: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#1976d2",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  typeButton: {
+    flex: 1,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#1976d2",
+    borderRadius: 8,
+    marginHorizontal: 4,
+    alignItems: "center",
+  },
+  selected: {
+    backgroundColor: "#1976d2",
+  },
+  typeButtonText: {
+    color: "#1976d2",
+    fontWeight: "600",
+  },
+  selectedText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  label: {
+    fontSize: 16,
+    color: "#333",
+    marginBottom: 6,
+    fontWeight: "500",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    fontSize: 16,
+    backgroundColor: "#fff",
+  },
+  totalAmount: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1976d2",
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 8,
+    textAlign: "center",
+  },
+  buttonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 24,
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: "#f5f5f5",
+    alignItems: "center",
+  },
+  cancelText: {
+    color: "#666",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  submitButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: "#1976d2",
+    alignItems: "center",
+  },
+  submitText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  vatToggleButton: {
+    flex: 1,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#1976d2",
+    borderRadius: 6,
+    alignItems: "center",
+    marginHorizontal: 2,
+    backgroundColor: "#fff",
+  },
+  vatToggleSelected: {
+    backgroundColor: "#1976d2",
+  },
+  vatToggleText: {
+    color: "#1976d2",
+    fontWeight: "bold",
+  },
+  vatToggleTextSelected: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+}) 
