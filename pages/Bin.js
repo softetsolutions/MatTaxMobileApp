@@ -10,6 +10,9 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { fetchDeletedTransactions } from "../api/transactions";
+import { Alert } from "react-native";
+import URI from "../assets/constants";
+
 
 export default function BinScreen() {
   const [userId, setUserId] = useState(null);
@@ -20,14 +23,15 @@ export default function BinScreen() {
     const fetchDeleted = async () => {
       try {
         const token = await AsyncStorage.getItem("token"); // Adjust key as per your app
-
         const decoded = jwtDecode(token);
+      
+
 
         if (token) {
           setUserId(decoded.id);
           const data = await fetchDeletedTransactions(token, 1, 10);
-
           setDeletedTransactions(data.transactions);
+        
         } else {
           console.warn("No token found");
         }
@@ -41,8 +45,81 @@ export default function BinScreen() {
     fetchDeleted();
   }, []);
 
+  // 🔹 Handle Restore
+  const handleRestore = async (transactionId) => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (!token) throw new Error("No token found");
+
+      const decoded = jwtDecode(token);
+     
+      const queryParams = new URLSearchParams({ userId: decoded.id,
+        transactionId: transactionId,
+       }).toString();
+
+      const res = await fetch(
+        `${URI}/transaction/restore?${queryParams}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ transactionId }),
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to restore");
+
+      // Update UI after restore
+      setDeletedTransactions((prev) =>
+        prev.filter((item) => item.id !== transactionId)
+      );
+
+      Alert.alert("Success", "Transaction restored successfully");
+    } catch (err) {
+      Alert.alert("Error", err.message);
+    }
+  };
+
+  // 🔹 Handle Permanent Delete
+  const handlePermanentDelete = async (transactionId) => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (!token) throw new Error("No token found");
+
+      const decoded = jwtDecode(token);
+
+      const queryParams = new URLSearchParams({ userId: decoded.id, transactionId: transactionId, }).toString();
+
+      const res = await fetch(
+        `${URI}/transaction/deletePermanently?${queryParams}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ transactionId }),
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete");
+
+      // Update UI after delete
+      setDeletedTransactions((prev) =>
+        prev.filter((item) => item.id !== transactionId)
+      );
+
+      Alert.alert("Deleted", "Transaction permanently deleted");
+    } catch (err) {
+      Alert.alert("Error", err.message);
+    }
+  };
   const renderItem = ({ item }) => (
-    <View style={styles.card} key={item._id}>
+    <View style={styles.card} key={item.id}>
       <Text style={styles.amount}>₹{item.amount}</Text>
       <Text style={styles.category}>Category: {item.category}</Text>
       <Text
@@ -55,10 +132,12 @@ export default function BinScreen() {
       </Text>
 
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.restoreButton}>
+        <TouchableOpacity style={styles.restoreButton}
+        onPress={() => handleRestore(item.id)}>
           <Text style={styles.buttonText}>Restore</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteButton}>
+        <TouchableOpacity style={styles.deleteButton} 
+        onPress={() => handlePermanentDelete(item.id)}>
           <Text style={styles.buttonText}>Delete</Text>
         </TouchableOpacity>
       </View>
@@ -80,7 +159,7 @@ export default function BinScreen() {
 
       <FlatList
         data={deletedTransactions}
-        keyExtractor={(item) => item._id}
+        keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={{ paddingBottom: 16 }}
       />

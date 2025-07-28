@@ -47,20 +47,18 @@ export default function LoginSignup() {
         ),
       });
       const result = await res.json();
-      console.log("API raw response:", result)
+      console.log("API raw response:", result);
       //await AsyncStorage.setItem("token", res.data);
       const token = result?.data;
       if (token) {
-        await AsyncStorage.setItem('token', token);
-        
+        await AsyncStorage.setItem("token", token);
       } else {
-        await AsyncStorage.removeItem('token'); // remove token if it's undefined
+        await AsyncStorage.removeItem("token"); // remove token if it's undefined
         console.warn("Invalid token received from server.");
       }
       const decodedTokenValue = jwtDecode(token) || "";
       console.log("decodedTokenValue", decodedTokenValue);
       setLoginDetails(true, token, decodedTokenValue.id);
-      
     } catch (e) {
       setError(e.message);
       console.error("message", e.message);
