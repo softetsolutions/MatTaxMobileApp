@@ -1,4 +1,4 @@
-// import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
-  Alert,
+  Image,
 } from "react-native";
-// import { getReceiptById } from "../api/receipts";
+import { getReceiptById } from "../api/receipts";
 import { formatDate } from "../utils/date";
+import Loader from "./Loader";
+import ReceiptImageModal from "./ReceiptImageModal";
 
 const { width, height } = Dimensions.get("window");
 
@@ -24,7 +26,6 @@ export default function TransactionDetailsModal({
   subcategoryMap = {},
   token,
 }) {
-
   if (!transaction) return null;
 
   const formatAmount = (amount) => {
@@ -43,33 +44,34 @@ export default function TransactionDetailsModal({
   const getTypeIcon = (type) => {
     return type === "moneyIn" ? "↗" : "↘";
   };
-  //   Alert.alert(
-  //     "Edit Transaction",
-  //     "Edit functionality will be implemented soon.",
-  //     [{ text: "OK", style: "default" }]
-  //   );
-  // };
 
-  // const handleDeleteTransaction = () => {
-  //   Alert.alert(
-  //     "Delete Transaction",
-  //     "Are you sure you want to delete this transaction? This action cannot be undone.",
-  //     [
-  //       { text: "Cancel", style: "cancel" },
-  //       {
-  //         text: "Delete",
-  //         style: "destructive",
-  //         onPress: () => {
-  //           Alert.alert(
-  //             "Delete Confirmed",
-  //             "Delete functionality will be implemented soon.",
-  //             [{ text: "OK", style: "default" }]
-  //           );
-  //         },
-  //       },
-  //     ]
-  //   );
-  // };
+  const [receiptModalVisible, setReceiptModalVisible] = useState(false);
+  const [receiptImage, setReceiptImage] = useState(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [receiptError, setReceiptError] = useState("");
+
+  // Fetch receipt image when transaction changes
+  useEffect(() => {
+    if (transaction && transaction.receipt) {
+      setReceiptLoading(true);
+      setReceiptError("");
+      setReceiptImage(null);
+      getReceiptById(token, transaction.receipt)
+        .then(res => {
+          if (res.data) {
+            setReceiptImage(`data:image/jpeg;base64,${res.data}`);
+          } else {
+            setReceiptError("No receipt image found.");
+          }
+        })
+        .catch(() => setReceiptError("Failed to load receipt image."))
+        .finally(() => setReceiptLoading(false));
+    } else {
+      setReceiptImage(null);
+      setReceiptError("");
+      setReceiptLoading(false);
+    }
+  }, [transaction, token]);
 
   return (
     <Modal
@@ -97,6 +99,27 @@ export default function TransactionDetailsModal({
             contentContainerStyle={styles.scrollContent}
             bounces={false}
           >
+            {/* Receipt at top */}
+            {transaction.receipt && (
+              <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                {receiptLoading ? (
+                  <View style={{ marginVertical: 12 }}>
+                    <Loader size="large" />
+                    <Text style={{ color: '#6366F1', marginTop: 8, fontWeight: 'bold' }}>Loading receipt...</Text>
+                  </View>
+                ) : receiptError ? (
+                  <Text style={{ color: 'red', marginVertical: 12 }}>{receiptError}</Text>
+                ) : receiptImage ? (
+                  <TouchableOpacity onPress={() => setReceiptModalVisible(true)} activeOpacity={0.8}>
+                    <Image
+                      source={{ uri: receiptImage }}
+                      style={{ width: 180, height: 220, borderRadius: 10, resizeMode: 'contain', backgroundColor: '#eee' }}
+                    />
+                    <Text style={{ color: '#6366F1', fontSize: 12, textAlign: 'center', marginTop: 4 }}>Tap to view full screen</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            )}
 
             {/* Amount and Type Card */}
             <View style={styles.amountCard}>
@@ -307,6 +330,14 @@ export default function TransactionDetailsModal({
           </View> */}
         </View>
       </View>
+
+      {/* Receipt Image Modal */}
+      <ReceiptImageModal
+        visible={receiptModalVisible}
+        image={receiptImage}
+        onClose={() => setReceiptModalVisible(false)}
+        error={receiptError}
+      />
     </Modal>
   );
 }

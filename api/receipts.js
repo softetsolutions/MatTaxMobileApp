@@ -1,7 +1,7 @@
 import URI from "../assets/constants";
 
 export async function getReceiptById(token, receiptId) {
-  const res = await fetch(`${URI}/receipt/getbyId/${receiptId}`, {
+  const res = await fetch(`${URI}/receipt/${receiptId}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
