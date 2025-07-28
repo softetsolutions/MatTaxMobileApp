@@ -47,7 +47,7 @@ export default function LoginSignup() {
         ),
       });
       const result = await res.json();
-      console.log("API raw response:", result);
+    
       //await AsyncStorage.setItem("token", res.data);
       const token = result?.data;
       if (token) {
@@ -57,7 +57,7 @@ export default function LoginSignup() {
         console.warn("Invalid token received from server.");
       }
       const decodedTokenValue = jwtDecode(token) || "";
-      console.log("decodedTokenValue", decodedTokenValue);
+    
       setLoginDetails(true, token, decodedTokenValue.id);
     } catch (e) {
       setError(e.message);
