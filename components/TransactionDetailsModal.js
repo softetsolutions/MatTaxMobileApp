@@ -8,11 +8,14 @@ import {
   ScrollView,
   Dimensions,
   Image,
+  Alert,
 } from "react-native";
 import { getReceiptById } from "../api/receipts";
+import { deleteTransaction } from "../api/transactions";
 import { formatDate } from "../utils/date";
 import Loader from "./Loader";
 import ReceiptImageModal from "./ReceiptImageModal";
+import TransactionLogModal from "./TransactionLogModal";
 
 const { width, height } = Dimensions.get("window");
 
@@ -20,35 +23,20 @@ export default function TransactionDetailsModal({
   visible,
   transaction,
   onClose,
+  onEdit,
+  onDelete,
+  userId,
   categoryMap = {},
   vendorMap = {},
   accountMap = {},
   subcategoryMap = {},
   token,
 }) {
-  if (!transaction) return null;
-
-  const formatAmount = (amount) => {
-    if (!amount) return "0";
-    return parseFloat(amount).toFixed(2);
-  };
-
-  const getTypeColor = (type) => {
-    return type === "moneyIn" ? "#10B981" : "#EF4444";
-  };
-
-  const getTypeText = (type) => {
-    return type === "moneyIn" ? "Money In" : "Money Out";
-  };
-
-  const getTypeIcon = (type) => {
-    return type === "moneyIn" ? "↗" : "↘";
-  };
-
   const [receiptModalVisible, setReceiptModalVisible] = useState(false);
   const [receiptImage, setReceiptImage] = useState(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
   const [receiptError, setReceiptError] = useState("");
+  const [logModalVisible, setLogModalVisible] = useState(false);
 
   // Fetch receipt image when transaction changes
   useEffect(() => {
@@ -73,6 +61,61 @@ export default function TransactionDetailsModal({
     }
   }, [transaction, token]);
 
+  if (!transaction) return null;
+
+  const formatAmount = (amount) => {
+    if (!amount) return "0";
+    return parseFloat(amount).toFixed(2);
+  };
+
+  const getTypeColor = (type) => {
+    return type === "moneyIn" ? "#10B981" : "#EF4444";
+  };
+
+  const getTypeText = (type) => {
+    return type === "moneyIn" ? "Money In" : "Money Out";
+  };
+
+  const getTypeIcon = (type) => {
+    return type === "moneyIn" ? "↗" : "↘";
+  };
+
+  const handleEditTransaction = () => {
+    if (onEdit) {
+      onEdit(transaction);
+    }
+  };
+
+  const handleDeleteTransaction = () => {
+    Alert.alert(
+      "Delete Transaction",
+      "Are you sure you want to delete this transaction? This action cannot be undone.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const result = await deleteTransaction(token, userId, transaction.id);
+              
+              Alert.alert("Success", "Transaction deleted successfully");
+              if (onDelete) {
+                onDelete(transaction);
+              }
+              onClose();
+            } catch (error) {
+              Alert.alert("Error", `Failed to delete transaction: ${error.message}`);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <Modal
       animationType="slide"
@@ -88,9 +131,17 @@ export default function TransactionDetailsModal({
               <Text style={styles.headerTitle}>Transaction Details</Text>
               <Text style={styles.headerSubtitle}>#{transaction.id}</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
+            <View style={styles.headerButtons}>
+              <TouchableOpacity 
+                onPress={() => setLogModalVisible(true)} 
+                style={styles.menuButton}
+              >
+                <Text style={styles.menuButtonText}>☰</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <ScrollView
@@ -99,6 +150,29 @@ export default function TransactionDetailsModal({
             contentContainerStyle={styles.scrollContent}
             bounces={false}
           >
+            {/* Transaction Logs at top */}
+            {logModalVisible && (
+              <View style={styles.logsContainer}>
+                <View style={styles.logsHeader}>
+                  <Text style={styles.logsTitle}>Transaction History</Text>
+                  <TouchableOpacity 
+                    onPress={() => setLogModalVisible(false)} 
+                    style={styles.closeLogsButton}
+                  >
+                    <Text style={styles.closeLogsButtonText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+                <TransactionLogModal
+                  visible={logModalVisible}
+                  transaction={transaction}
+                  onClose={() => setLogModalVisible(false)}
+                  token={token}
+                  userId={userId}
+                  embedded={true}
+                />
+              </View>
+            )}
+
             {/* Receipt at top */}
             {transaction.receipt && (
               <View style={{ alignItems: 'center', marginBottom: 16 }}>
@@ -168,11 +242,11 @@ export default function TransactionDetailsModal({
             )}
 
             {/* Vendor Card */}
-            {transaction.vendorname && (
+            {transaction.vendorName && (
               <View style={styles.infoCard}>
                 <Text style={styles.cardTitle}>Vendor</Text>
                 <Text style={styles.cardValue}>
-                  {vendorMap[transaction.vendorname] || transaction.vendorname}
+                  {vendorMap[transaction.vendorName] || transaction.vendorName}
                 </Text>
               </View>
             )}
@@ -308,14 +382,18 @@ export default function TransactionDetailsModal({
             </View>
           </ScrollView>
 
-          {/* Fixed Action Buttons
+          {/* Fixed Action Buttons */}
           <View style={styles.fixedActionButtons}>
             <TouchableOpacity
               style={styles.editButton}
               onPress={handleEditTransaction}
               activeOpacity={0.8}
             >
-              <Text style={styles.editButtonIcon}>✏</Text>
+              <Image 
+                source={require('../assets/edit.png')} 
+                style={styles.buttonIcon}
+                resizeMode="contain"
+              />
               <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
 
@@ -324,10 +402,14 @@ export default function TransactionDetailsModal({
               onPress={handleDeleteTransaction}
               activeOpacity={0.8}
             >
-              <Text style={styles.deleteButtonIcon}>🗑</Text>
+              <Image 
+                source={require('../assets/delete.png')} 
+                style={styles.buttonIcon}
+                resizeMode="contain"
+              />
               <Text style={styles.deleteButtonText}>Delete</Text>
             </TouchableOpacity>
-          </View> */}
+          </View>
         </View>
       </View>
 
@@ -382,6 +464,24 @@ const styles = StyleSheet.create({
     color: "#64748B",
     fontWeight: "500",
   },
+  headerButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  menuButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+  },
+  menuButtonText: {
+    fontSize: 16,
+    color: "#64748B",
+    fontWeight: "bold",
+  },
   closeButton: {
     width: 32,
     height: 32,
@@ -403,7 +503,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
   amountCard: {
     backgroundColor: "#FFFFFF",
@@ -571,7 +671,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#FFFFFF",
     borderRadius: 8,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     flex: 1,
     marginRight: 8,
@@ -584,11 +684,6 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  editButtonIcon: {
-    fontSize: 16,
-    marginRight: 6,
-    color: "#374151",
-  },
   editButtonText: {
     fontSize: 14,
     fontWeight: "600",
@@ -599,7 +694,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#FFFFFF",
     borderRadius: 8,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     flex: 1,
     marginLeft: 8,
@@ -612,11 +707,6 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  deleteButtonIcon: {
-    fontSize: 16,
-    marginRight: 6,
-    color: "#DC2626",
-  },
   deleteButtonText: {
     fontSize: 14,
     fontWeight: "600",
@@ -624,18 +714,60 @@ const styles = StyleSheet.create({
   },
   fixedActionButtons: {
     position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
+    bottom: 40,
+    left: 20,
+    right: 20,
     backgroundColor: "#FFFFFF",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  buttonIcon: {
+    width: 24,
+    height: 24,
+    marginRight: 10,
+  },
+  logsContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
     elevation: 3,
+  },
+  logsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  logsTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1E293B",
+  },
+  closeLogsButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  closeLogsButtonText: {
+    fontSize: 16,
+    color: "#64748B",
+    fontWeight: "bold",
   },
 });

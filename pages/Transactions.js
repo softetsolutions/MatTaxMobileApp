@@ -30,6 +30,8 @@ export default function Transactions() {
   const [hasMore, setHasMore] = useState(true);
   const [totalItems, setTotalItems] = useState(0);
   const [addModalVisible, setAddModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState(null);
   const token = useLoginStore((state) => state.token);
   const userId = useLoginStore((state) => state.id);
 
@@ -112,6 +114,18 @@ export default function Transactions() {
     setModalVisible(false);
     setSelectedTransaction(null);
   };
+  1
+  const handleEditTransaction = (transaction) => {
+    setEditingTransaction(transaction);
+    setEditModalVisible(true);
+    setModalVisible(false);
+  };
+
+  // New function to handle edit modal close
+  const closeEditModal = () => {
+    setEditModalVisible(false);
+    setEditingTransaction(null);
+  };
 
   const renderFooter = () => {
     if (!isLoadingMore) return null;
@@ -129,7 +143,7 @@ export default function Transactions() {
       <Text style={styles.title}>Transactions</Text>
       <Text style={styles.countText}>{totalItems} transaction{totalItems === 1 ? '' : 's'} found</Text>
       {loading ? (
-        <Loader style={{ marginTop: 20 }} />
+        <Loader message="Loading transactions..." style={{ marginTop: 20 }} />
       ) : error ? (
         <Text style={{ color: 'red', marginTop: 20 }}>{error}</Text>
       ) : (
@@ -159,12 +173,20 @@ export default function Transactions() {
         visible={modalVisible}
         transaction={selectedTransaction}
         onClose={closeModal}
+        onEdit={handleEditTransaction}
+        onDelete={async (deletedTransaction) => {
+          // Remove the deleted transaction from the list
+          setTransactions(prev => prev.filter(t => t.id !== deletedTransaction.id));
+          setTotalItems(prev => prev - 1);
+        }}
+        userId={userId}
         categoryMap={categoryMap}
         vendorMap={vendorMap}
         accountMap={accountMap}
         subcategoryMap={subcategoryMap}
         token={token}
       />
+      
       {/* Add Transaction Modal */}
       <AddTransactionModal
         visible={addModalVisible}
@@ -181,6 +203,28 @@ export default function Transactions() {
         userId={userId}
         onSubmit={async () => {
           setAddModalVisible(false);
+          await getData();
+        }}
+      />
+
+      {/* Edit Transaction Modal */}
+      <AddTransactionModal
+        visible={editModalVisible}
+        onClose={closeEditModal}
+        isEditing={true}
+        editingTransaction={editingTransaction}
+        accounts={accounts}
+        setAccounts={setAccounts} 
+        categories={categories}
+        setCategories={setCategories} 
+        subcategories={Object.entries(subcategoryMap).map(([id, name]) => ({ id, name }))}
+        setSubcategoryMap={setSubcategoryMap}
+        vendors={vendors}
+        setVendors={setVendors}
+        token={token}
+        userId={userId}
+        onSubmit={async () => {
+          closeEditModal();
           await getData();
         }}
       />

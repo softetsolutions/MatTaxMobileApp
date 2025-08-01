@@ -1,5 +1,6 @@
 import { Text } from "react-native";
 import Transactions from "../pages/Transactions";
+import Reports from "../pages/Reports";
 
 export default function TabContent({ activeTab }) {
   switch (activeTab) {
@@ -12,7 +13,7 @@ export default function TabContent({ activeTab }) {
     case "profile":
       return <Text style={{ textAlign: "center", marginTop: 40 }}>Profile Screen</Text>;
     case "report":
-      return <Text style={{ textAlign: "center", marginTop: 40 }}>Report Screen </Text>;
+      return <Reports />;
     default:
       return null;
   }
