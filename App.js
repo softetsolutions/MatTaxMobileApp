@@ -5,7 +5,8 @@ import Profile from "./components/Profile";
 export default function App() {
   return (
     <SafeAreaProvider>
-      <MainScreen />
+      {/* <MainScreen /> */}
+      <Profile />
     </SafeAreaProvider>
   );
 }

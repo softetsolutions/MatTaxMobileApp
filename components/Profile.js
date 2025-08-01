@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Alert
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import URI from "../assets/constants";
 
 const Profile = () => {
@@ -158,7 +157,7 @@ const Profile = () => {
         <Text style={styles.dangerTitle}>Delete Account</Text>
         <Text style={styles.dangerDesc}>Once you delete your account, there is no going back. Please be certain.</Text>
         <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          <Icon name="trash-can" size={20} color="white" style={styles.deleteIcon} />
+          <Text style={[styles.deleteButtonText, styles.deleteIcon]}>🗑️</Text>
           <Text style={styles.deleteButtonText}>Delete Account</Text>
         </TouchableOpacity>
       </View>
@@ -215,7 +214,7 @@ const styles = StyleSheet.create({
   dangerTitle: { fontSize: 16, fontWeight: 'bold', color: 'red', marginBottom: 8 },
   dangerDesc: { fontSize: 13, color: 'gray', marginBottom: 15 },
   deleteButton: { backgroundColor: 'red', paddingVertical: 10, borderRadius: 5, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
-  deleteIcon: { marginRight: 8 },
+  deleteIcon: { marginRight: 8, fontSize: 18 },
   deleteButtonText: { color: 'white', fontWeight: 'bold' },
 });
 
