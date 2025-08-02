@@ -10,11 +10,13 @@ import {
 } from "react-native";
 import { fetchUserDetails, updateUserDetails, sendDeleteEmail } from "../api/user"; 
 import useLoginStore from "../store/store";
+import Loader from "../components/Loader";
 
 const Profile = () => {
 
     const { token, id: userId } = useLoginStore();
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState({
     firstName: "",
     lastName: "",
@@ -32,11 +34,14 @@ const Profile = () => {
 
   const loadProfile = async () => {
     try {
+      setLoading(true);
       const data = await fetchUserDetails(token,userId);
       setProfile(data);
     } catch (error) {
       console.error(error);
       Alert.alert("Error", "Failed to load profile");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -76,6 +81,14 @@ const Profile = () => {
 
   const updateField = (key, value) =>
     setProfile({ ...profile, [key]: value });
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Loader message="Loading profile..." />
+      </View>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -330,6 +343,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   deleteButtonText: { color: "white", fontWeight: "bold" },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F5F5F5",
+  },
 });
 
 export default Profile;

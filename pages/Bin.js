@@ -11,6 +11,7 @@ import { fetchDeletedTransactions } from "../api/transactions";
 import { Alert } from "react-native";
 import URI from "../assets/constants";
 import useLoginStore from "../store/store";
+import Loader from "../components/Loader";
 
 
 export default function BinScreen() {
@@ -29,7 +30,7 @@ export default function BinScreen() {
 
         if (token) {
           setUserId(id);
-          const data = await fetchDeletedTransactions(token, 1, 10);
+          const data = await fetchDeletedTransactions(token, id, 1, 10);
           setDeletedTransactions(data.transactions);
         
         } else {
@@ -144,8 +145,8 @@ export default function BinScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: "center" }]}>
-        <ActivityIndicator size="large" color="#0000ff" />
+      <View style={styles.loadingContainer}>
+        <Loader message="Loading deleted transactions..." />
       </View>
     );
   }
@@ -217,5 +218,11 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontWeight: "bold",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
   },
 });

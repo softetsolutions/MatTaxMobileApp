@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,10 +7,10 @@ import {
   FlatList,
   Modal,
   StyleSheet,
-  ActivityIndicator,
 } from "react-native";
 import { fetchAccountants } from "../api/accountantAuthorize";
 import useLoginStore from "../store/store";
+import Loader from "../components/Loader";
 
 export default function AccountantManagement() {
   const { id } = useLoginStore();
@@ -82,7 +82,11 @@ export default function AccountantManagement() {
   );
 
   if (loading) {
-    return <ActivityIndicator size="large" style={{ marginTop: 50 }} />;
+    return (
+      <View style={styles.loadingContainer}>
+        <Loader message="Loading accountants..." />
+      </View>
+    );
   }
 
   return (
@@ -215,4 +219,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   closeButtonText: { color: "#fff", fontWeight: "600" },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+  },
 });
