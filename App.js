@@ -3,8 +3,7 @@ import MainScreen from "./pages/MainScreen";
 export default function App() {
   return (
     <SafeAreaProvider>
-      {/* <MainScreen /> */}
-      <Profile />
+      <MainScreen />
     </SafeAreaProvider>
   );
 }

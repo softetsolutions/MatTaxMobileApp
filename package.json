@@ -21,8 +21,8 @@
     "jwt-decode": "^4.0.0",
     "react": "19.0.0",
     "react-native": "0.79.5",
+    "react-native-dotenv": "^3.4.11",
     "react-native-safe-area-context": "5.4.0",
-    "react-native-vector-icons": "^10.2.0",
     "zustand": "^5.0.5"
   },
   "devDependencies": {
