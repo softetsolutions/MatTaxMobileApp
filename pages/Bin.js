@@ -1,5 +1,3 @@
-import { jwtDecode } from "jwt-decode";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -12,23 +10,25 @@ import {
 import { fetchDeletedTransactions } from "../api/transactions";
 import { Alert } from "react-native";
 import URI from "../assets/constants";
+import useLoginStore from "../store/store";
 
 
 export default function BinScreen() {
   const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deletedTransactions, setDeletedTransactions] = useState([]);
+  const { token, id } = useLoginStore();
 
   useEffect(() => {
     const fetchDeleted = async () => {
       try {
-        const token = await AsyncStorage.getItem("token"); // Adjust key as per your app
-        const decoded = jwtDecode(token);
+        // const token = await AsyncStorage.getItem("token"); // Adjust key as per your app
+        // const decoded = jwtDecode(token);
       
 
 
         if (token) {
-          setUserId(decoded.id);
+          setUserId(id);
           const data = await fetchDeletedTransactions(token, 1, 10);
           setDeletedTransactions(data.transactions);
         
@@ -45,15 +45,14 @@ export default function BinScreen() {
     fetchDeleted();
   }, []);
 
-  // 🔹 Handle Restore
+  //  Handle Restore
   const handleRestore = async (transactionId) => {
     try {
-      const token = await AsyncStorage.getItem("token");
+     
       if (!token) throw new Error("No token found");
 
-      const decoded = jwtDecode(token);
-     
-      const queryParams = new URLSearchParams({ userId: decoded.id,
+    
+      const queryParams = new URLSearchParams({ userId: id,
         transactionId: transactionId,
        }).toString();
 
@@ -83,15 +82,14 @@ export default function BinScreen() {
     }
   };
 
-  // 🔹 Handle Permanent Delete
+  //  Handle Permanent Delete
   const handlePermanentDelete = async (transactionId) => {
     try {
-      const token = await AsyncStorage.getItem("token");
+      // const token = await AsyncStorage.getItem("token");
       if (!token) throw new Error("No token found");
 
-      const decoded = jwtDecode(token);
-
-      const queryParams = new URLSearchParams({ userId: decoded.id, transactionId: transactionId, }).toString();
+    
+      const queryParams = new URLSearchParams({ userId: id, transactionId: transactionId, }).toString();
 
       const res = await fetch(
         `${URI}/transaction/deletePermanently?${queryParams}`,

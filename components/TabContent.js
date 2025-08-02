@@ -2,14 +2,15 @@ import { Text } from "react-native";
 import Transactions from "../pages/Transactions";
 import Reports from "../pages/Reports";
 import Bin from "../pages/Bin";
-import Profile from "../components/Profile"
+import AccountantPage from "../pages/AccountantPage";
+import Profile from "../pages/ProfilePage";
 
 export default function TabContent({ activeTab }) {
   switch (activeTab) {
     case "transactions":
       return <Transactions />;
     case "authorise":
-      return <Text style={{ textAlign: "center", marginTop: 40 }}>Authorise Accountant Screen</Text>;
+      return <AccountantPage/>;
     case "bin":
       return <Bin/>;
     case "profile":
