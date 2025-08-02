@@ -20,11 +20,10 @@ export async function fetchTransactions(token, userId, page = 1, limit = 10) {
 } 
 
 
-export const fetchDeletedTransactions = async (token, page = 1, limit = 10) => {
+export const fetchDeletedTransactions = async (token,userId, page = 1, limit = 10) => {
   try {
-    const decoded = jwtDecode(token);
-    const userId = decoded.id || decoded.userId || decoded._id;
 
+  
     const queryParams = new URLSearchParams({
       userId,
       page,
@@ -52,10 +51,9 @@ export const fetchDeletedTransactions = async (token, page = 1, limit = 10) => {
   }
 };
 
-export const restoreTransaction = async (token, transactionId) => {
+export const restoreTransaction = async (token, userId, transactionId) => {
   try {
-    const decoded = jwtDecode(token);
-    const userId = decoded.id || decoded.userId || decoded._id;
+ 
 
     const queryParams = new URLSearchParams({ userId }).toString();
 
@@ -81,10 +79,9 @@ export const restoreTransaction = async (token, transactionId) => {
   }
 };
 
-export const deleteTransactionPermanently = async (token, transactionId) => {
+export const deleteTransactionPermanently = async (token, userId,transactionId) => {
   try {
-    const decoded = jwtDecode(token);
-    const userId = decoded.id || decoded.userId || decoded._id;
+    
 
     const queryParams = new URLSearchParams({ userId }).toString();
 
