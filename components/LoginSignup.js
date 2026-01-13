@@ -46,11 +46,19 @@ export default function LoginSignup() {
           isLogin ? { email: form.email, password: form.password } : form
         ),
       });
-      res = await res.json();
-      await AsyncStorage.setItem("token", res.data);
-      const decodedTokenValue = jwtDecode(res?.data) || "";
-      console.log("decodedTokenValue", decodedTokenValue);
-      setLoginDetails(true, res.data, decodedTokenValue.id);
+      const result = await res.json();
+    
+      //await AsyncStorage.setItem("token", res.data);
+      const token = result?.data;
+      if (token) {
+        await AsyncStorage.setItem("token", token);
+      } else {
+        await AsyncStorage.removeItem("token"); // remove token if it's undefined
+        console.warn("Invalid token received from server.");
+      }
+      const decodedTokenValue = jwtDecode(token) || "";
+    
+      setLoginDetails(true, token, decodedTokenValue.id);
     } catch (e) {
       setError(e.message);
       console.error("message", e.message);

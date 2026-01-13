@@ -62,10 +62,13 @@ export default function Transactions() {
         setVendorMap(vendMap);
 
         // Fetch accounts
-        const accs = await fetchAccounts(token, userId);
+        const accs = await fetchAccounts(token, userId)
         setAccounts(accs);
+       
         const accMap = Object.fromEntries(accs.map(acc => [acc.id, acc.accountNo]));
         setAccountMap(accMap);
+      
+       
 
         // Fetch first page of transactions
         const data = await fetchTransactions(token, userId, 1, 10);

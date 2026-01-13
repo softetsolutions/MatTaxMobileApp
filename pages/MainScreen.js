@@ -22,7 +22,18 @@ export default function MainScreen() {
         const value = await AsyncStorage.getItem("token");
         if (value) {
           const decode = jwtDecode(value);
-          setLoginDetails(true, value, decode.id);
+         
+          const currentTime = Date.now() / 1000; // current time in seconds
+
+          if (decode.exp && decode.exp < currentTime) {
+            // Token expired
+            await AsyncStorage.removeItem("token"); // Optional: remove expired token
+            setLoginDetails(false, "", undefined);
+          } else {
+            // Token valid
+            setLoginDetails(true, value, decode.id);
+          }
+         
         } else {
           setLoginDetails(false, "value", undefined);
         }
