@@ -38,6 +38,7 @@ export default function AddTransactionModal({
   const [cashAmount, setCashAmount] = useState("")
   const [bankAmount, setBankAmount] = useState("")
   const [creditCardAmount, setCreditCardAmount] = useState("")
+  const [creditCardNumber, setCreditCardNumber] = useState("")
   const [vatEnabled, setVatEnabled] = useState(false)
   const [vatAmount, setVatAmount] = useState("")
   const [vatPercent, setVatPercent] = useState("20");
@@ -67,6 +68,54 @@ export default function AddTransactionModal({
   const categoryOptions = categories.map((c) => c.name);
   const vendorOptions = vendors.map((v) => v.name);
   const subcategoryOptionsList = subcategoryOptions.map((s) => s.name);
+const [paymentMethod, setPaymentMethod] = useState("cash");
+
+
+
+  const handlePaymentMethodChange = (method) => {
+  setPaymentMethod(method);
+
+  if (method === "cash") {
+    setBankAmount("");
+    setCreditCardAmount("");
+    //setCreditCardNumber("");
+  } else if (method === "bank") {
+    setCashAmount("");
+    setCreditCardAmount("");
+    //setCreditCardNumber("");
+  } else if (method === "credit") {
+    setCashAmount("");
+    setBankAmount("");
+  }
+  else if (method === "mix") {
+    setCashAmount("");
+    setBankAmount("");
+    setCreditCardAmount("");
+    //setCreditCardNumber("");
+  }
+
+};
+useEffect(() => {
+  if (isEditing && editingTransaction) {
+    const cash = Number(editingTransaction.amount_cash) || 0;
+    const bank = Number(editingTransaction.amount_bank) || 0;
+    const credit = Number(editingTransaction.amount_creditcard) || 0;
+
+    if (cash > 0 && bank === 0 && credit === 0) {
+      setPaymentMethod("cash");
+    } else if (bank > 0 && cash === 0 && credit === 0) {
+      setPaymentMethod("bank");
+    } else if (credit > 0 && cash === 0 && bank === 0) {
+      setPaymentMethod("credit");
+    } else if (cash > 0 || bank > 0 || credit > 0) {
+      setPaymentMethod("mix");
+    } else {
+      setPaymentMethod("cash");
+    }
+  }
+}, [isEditing, editingTransaction]);
+
+
 
   // Load transaction data when editing
   useEffect(() => {
@@ -79,6 +128,7 @@ export default function AddTransactionModal({
       setCashAmount(editingTransaction.amount_cash?.toString() || "");
       setBankAmount(editingTransaction.amount_bank?.toString() || "");
       setCreditCardAmount(editingTransaction.amount_creditcard?.toString() || "");
+      setCreditCardNumber(editingTransaction.credit_card_number || "");
       
       // Set description
       setDetails(editingTransaction.desc3 || "");
@@ -257,6 +307,8 @@ export default function AddTransactionModal({
     setCashAmount("")
     setBankAmount("")
     setCreditCardAmount("")
+    setCreditCardNumber("")
+     setPaymentMethod("cash");
     setVatEnabled(false)
     setVatAmount("")
     setVatPercent("20")
@@ -318,14 +370,16 @@ export default function AddTransactionModal({
         formData.append("newAmountbank", isNaN(Number(bankAmount)) ? 0 : Number(bankAmount));
         formData.append("newAmountcash", isNaN(Number(cashAmount)) ? 0 : Number(cashAmount));
         formData.append("newAmountcreditcard", isNaN(Number(creditCardAmount)) ? 0 : Number(creditCardAmount));
-        formData.append("newCategory", categoryId);
-        formData.append("newDesc3", details || "");
+        formData.append("newCreditCardNumber", creditCardNumber || "");
+        if (categoryId != null)formData.append("newCategory", categoryId);
+        formData.append("desc3", details || "");
         formData.append("newInvoiceamount", isNaN(Number(invoiceAmount)) ? 0 : Number(invoiceAmount));
         formData.append("newInvoicedate", invoiceDate instanceof Date ? invoiceDate.toISOString() : "");
-        formData.append("newInvoiced", invoiced === true ? 'yes' : invoiced === false ? 'no' : "");
-        formData.append("newsubCategory1", subcategoryId);
+        formData.append("newInvoiced", invoiced ? "yes" : "no");
+
+        if (subcategoryId != null)formData.append("newsubCategory1", subcategoryId);
         formData.append("newType", type === "in" ? "moneyIn" : "moneyOut");
-        formData.append("accountNo", accountId);
+        if (accountId != null)formData.append("accountNo", accountId);
         if (vatEnabled) {
           if (vatMode === "amount" && vatAmount) {
             formData.append("vat_gst_amount", Number(vatAmount));
@@ -333,8 +387,13 @@ export default function AddTransactionModal({
             formData.append("vat_gst_percentage", Number(vatPercent));
             formData.append("vat_gst_amount", totalAmount ? Number((Number(totalAmount) * Number(vatPercent) / 100).toFixed(2)) : "");
           }
+
         }
-        formData.append("vendorId", vendorId);
+        //console.log("Form data SUBMIT:", formData);
+       if (vendorId != null) {
+  formData.append("vendorId", String(vendorId));
+}
+
         if (receiptImage && receiptImage.uri) {
           const fileName = receiptImage.fileName || receiptImage.uri.split("/").pop();
           formData.append("file", {
@@ -343,21 +402,27 @@ export default function AddTransactionModal({
             type: receiptImage.mimeType || "image/jpeg",
           });
         }
+        //console.log("INVOICED BEFORE SUBMIT:", invoiced);
+console.log(
+  "FORM DATA VALUE:",
+  invoiced ? "yes" : "no"
+);
         await updateTransaction(formData, token, userId, true);
       } else {
         // Create new transaction
         const formData = new FormData();
-        formData.append("accountNo", accountId);
+        if (accountId != null)formData.append("accountNo", accountId);
         formData.append("amount", isNaN(Number(totalAmount)) ? 0 : Number(totalAmount));
         formData.append("amount_bank", isNaN(Number(bankAmount)) ? 0 : Number(bankAmount));
         formData.append("amount_cash", isNaN(Number(cashAmount)) ? 0 : Number(cashAmount));
         formData.append("amount_creditcard", isNaN(Number(creditCardAmount)) ? 0 : Number(creditCardAmount));
-        formData.append("category", categoryId);
+        formData.append("credit_card_number", creditCardNumber || "");
+         if (categoryId != null)formData.append("category", categoryId);
         formData.append("desc3", details || "");
         formData.append("invoice_amount", isNaN(Number(invoiceAmount)) ? 0 : Number(invoiceAmount));
         formData.append("invoice_date", invoiceDate instanceof Date ? invoiceDate.toISOString() : "");
-        formData.append("isInvoiced", invoiced === true ? 'yes' : invoiced === false ? 'no' : "");
-        formData.append("sub_category1", subcategoryId);
+        formData.append("invoiced", invoiced === true ? 'yes':'no');
+         if (subcategoryId != null)formData.append("sub_category1", subcategoryId);
         formData.append("type", type === "in" ? "moneyIn" : "moneyOut");
         formData.append("userId", userId);
         if (vatEnabled) {
@@ -368,7 +433,11 @@ export default function AddTransactionModal({
             formData.append("vat_gst_amount", totalAmount ? Number((Number(totalAmount) * Number(vatPercent) / 100).toFixed(2)) : "");
           }
         }
-        formData.append("vendorId", vendorId);
+        //console.log("Form data SUBMIT:", formData);
+        if (vendorId != null) {
+  formData.append("vendorId", String(vendorId));
+}
+
         formData.append("isDeleted", false);
         if (receiptImage && receiptImage.uri) {
           const fileName = receiptImage.fileName || receiptImage.uri.split("/").pop();
@@ -474,7 +543,22 @@ export default function AddTransactionModal({
       };
       const result = await extractReceiptData(file, token);
       // mapping
-      if (result.amount !== undefined) setCashAmount(result.amount.toString());
+      if (result.amount !== undefined) {
+        const extractedAmount = result.amount.toString();
+        if(paymentMethod=="cash"){
+          setCashAmount(extractedAmount);
+        }
+        else if(paymentMethod=="bank"){
+          setBankAmount(extractedAmount);
+        }
+        else if(paymentMethod=="credit"){
+          setCreditCardAmount(extractedAmount);
+        }
+         else if (paymentMethod === "mix") {
+    
+    setCashAmount(extractedAmount);
+  }
+      }
       // CATEGORY
       if (result.category && result.category !== "Unknown") {
         setCategory(result.category);
@@ -610,10 +694,87 @@ export default function AddTransactionModal({
             </TouchableOpacity>
           </View>
 
-          {/* Transaction Details */}
+          <Text style={styles.label}>
+  {type === "in" ? "Money Received" : "Money Paid"}
+</Text>
+
+<View style={styles.radioRow}>
+  {["cash", "bank", "credit", "mix"].map((method) => (
+    <TouchableOpacity
+      key={method}
+      style={[
+        styles.radioButton,
+        paymentMethod === method && styles.radioSelected,
+      ]}
+      onPress={() => handlePaymentMethodChange(method)}
+    >
+      <View style={styles.radioCircle}>
+        {paymentMethod === method && <View style={styles.radioDot} />}
+      </View>
+      <Text style={styles.radioLabel}>
+        {method === "cash"
+          ? "Cash"
+          : method === "bank"
+          ? "By Bank"
+          : method === "credit"
+          ? "Credit Card"
+          : "Mix Payment"}
+      </Text>
+    </TouchableOpacity>
+  ))}
+</View>
+  {/* Transaction Details */}
           <Text style={styles.label}>Transaction Details</Text>
           <TextInput placeholder="Enter Detail" value={details} onChangeText={setDetails} style={styles.input} />
 
+{(paymentMethod === "cash" || paymentMethod === "mix") && (
+  <>
+    <Text style={styles.label}>Cash Amount</Text>
+    <TextInput
+      placeholder="Enter Cash Amount"
+      value={cashAmount}
+      onChangeText={setCashAmount}
+      keyboardType="numeric"
+      style={styles.input}
+    />
+  </>
+)}
+{(paymentMethod === "bank" || paymentMethod === "mix") && (
+  <>
+    <Text style={styles.label}>Bank Amount</Text>
+    <TextInput
+      placeholder="Enter Bank Amount"
+      value={bankAmount}
+      onChangeText={setBankAmount}
+      keyboardType="numeric"
+      style={styles.input}
+    />
+  </>
+)}
+{(paymentMethod === "credit" || paymentMethod === "mix") && (
+  <>
+    <Text style={styles.label}>Credit Card Amount</Text>
+    <TextInput
+      placeholder="Enter Credit Card Amount"
+      value={creditCardAmount}
+      onChangeText={setCreditCardAmount}
+      keyboardType="numeric"
+      style={styles.input}
+    />
+    <Text style={styles.label}>Credit Card Number</Text>
+    <TextInput
+      placeholder="Enter Credit Card Number"
+      value={creditCardNumber}
+      onChangeText={setCreditCardNumber}
+      keyboardType="numeric"
+      style={styles.input}
+    />
+  </>
+)}
+
+
+          
+        
           {/* Account Number */}
           <SearchableInputModal
             label="Account Number"
@@ -626,7 +787,7 @@ export default function AddTransactionModal({
           />
 
           {/* Amount Fields */}
-          <Text style={styles.label}>Cash Amount</Text>
+          {/* <Text style={styles.label}>Cash Amount</Text>
           <TextInput
             placeholder="Enter Cash Amount"
             value={cashAmount}
@@ -651,7 +812,7 @@ export default function AddTransactionModal({
             onChangeText={setCreditCardAmount}
             keyboardType="numeric"
             style={styles.input}
-          />
+          /> */}
 
           {/* Total Amount */}
           <Text style={styles.label}>Total Amount</Text>
@@ -977,4 +1138,36 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 10,
   },
+  radioRow: {
+  flexDirection: "row",
+  flexWrap: "wrap",
+  marginVertical: 8,
+},
+radioButton: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginRight: 16,
+  marginBottom: 8,
+},
+radioCircle: {
+  width: 18,
+  height: 18,
+  borderRadius: 9,
+  borderWidth: 2,
+  borderColor: "#1976d2",
+  alignItems: "center",
+  justifyContent: "center",
+},
+radioDot: {
+  width: 8,
+  height: 8,
+  borderRadius: 4,
+  backgroundColor: "#1976d2",
+},
+radioLabel: {
+  marginLeft: 6,
+  fontSize: 14,
+  color: "#000",
+},
+
 }) 

@@ -153,17 +153,27 @@ export default function BinScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Bin</Text>
-      <Text style={styles.subtitle}>Deleted Transactions</Text>
+    <Text style={styles.title}>Bin</Text>
+    <Text style={styles.subtitle}>Deleted Transactions</Text>
 
+    {deletedTransactions.length === 0 ? (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyIcon}>🗑️</Text>
+        <Text style={styles.emptyTitle}>Bin is Empty</Text>
+        <Text style={styles.emptySubtitle}>
+          You have no deleted transactions.
+        </Text>
+      </View>
+    ) : (
       <FlatList
         data={deletedTransactions}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={{ paddingBottom: 16 }}
       />
-    </View>
-  );
+    )}
+  </View>
+);
 }
 
 const styles = StyleSheet.create({
@@ -225,4 +235,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#fff",
   },
+  emptyContainer: {
+  flex: 1,
+  justifyContent: "center",
+  alignItems: "center",
+  marginTop: 50,
+},
+
+emptyIcon: {
+  fontSize: 60,
+  marginBottom: 10,
+},
+
+emptyTitle: {
+  fontSize: 22,
+  fontWeight: "bold",
+  marginBottom: 4,
+},
+
+emptySubtitle: {
+  fontSize: 16,
+  color: "#666",
+},
+
 });

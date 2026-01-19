@@ -36,6 +36,7 @@ const tabs = [
       <Image source={require("../assets/icons8-reports-50.png")} style={{ width: 24, height: 24, tintColor: color }} />
     ),
   },
+  { key: "logout", label: "Logout", icon: (color) => (<Image source={require("../assets/logout.png")} style={{ width: 24, height: 24, tintColor: color }} />) },
 ];
 
 export default tabs; 

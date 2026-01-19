@@ -57,7 +57,7 @@ export default function Transactions() {
         }
       }
       setSubcategoryMap(subcatMap);
-
+    
       // Fetch vendors
       const vends = await fetchVendors(token, userId);
       setVendors(vends);

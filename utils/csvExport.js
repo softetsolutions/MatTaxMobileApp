@@ -1,4 +1,5 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from "expo-file-system/legacy";
+
 import * as Sharing from 'expo-sharing';
 import { Share, Alert } from 'react-native';
 
@@ -51,7 +52,7 @@ export const exportToCSV = async (data, filename = 'report') => {
     
     // Write the CSV file
     await FileSystem.writeAsStringAsync(fileUri, csvContent, {
-      encoding: FileSystem.EncodingType.UTF8,
+      encoding: "utf8",
     });
 
     // Check if sharing is available

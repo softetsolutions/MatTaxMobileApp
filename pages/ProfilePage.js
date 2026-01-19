@@ -11,12 +11,17 @@ import {
 import { fetchUserDetails, updateUserDetails, sendDeleteEmail } from "../api/user"; 
 import useLoginStore from "../store/store";
 import Loader from "../components/Loader";
+import TwoFAScreen from "../components/TwoFASection";
 
 const Profile = () => {
 
     const { token, id: userId } = useLoginStore();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [is2FAEnabled, setIs2FAEnabled] = useState(false);
+
+
   const [profile, setProfile] = useState({
     firstName: "",
     lastName: "",
@@ -56,28 +61,60 @@ const Profile = () => {
       Alert.alert("Error", "Failed to update profile");
     }
   };
+ useEffect(() => {
+  if (profile?.twoFAEnabled !== undefined) {
+    setIs2FAEnabled(profile.twoFAEnabled);
+  }
+}, [profile]);
 
+
+
+
+  // const handleDelete = () => {
+  //   Alert.alert("Delete Account", "This cannot be undone.", [
+  //     { text: "Cancel", style: "cancel" },
+  //     {
+  //       text: "Delete",
+  //       style: "destructive",
+  //       onPress: async () => {
+  //         try {
+  //           await sendDeleteEmail(token,profile.email);
+  //           Alert.alert(
+  //             "Deleted",
+  //             "A confirmation email has been sent to your registered email."
+  //           );
+  //         } catch (error) {
+  //           console.error(error);
+  //           Alert.alert("Error", "Failed to delete account");
+  //         }
+  //       },
+  //     },
+  //   ]);
+  // };
   const handleDelete = () => {
-    Alert.alert("Delete Account", "This cannot be undone.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await sendDeleteEmail(token,profile.email);
-            Alert.alert(
-              "Deleted",
-              "A confirmation email has been sent to your registered email."
-            );
-          } catch (error) {
-            console.error(error);
-            Alert.alert("Error", "Failed to delete account");
-          }
-        },
+  Alert.alert("Delete Account", "This cannot be undone.", [
+    { text: "Cancel", style: "cancel" },
+    {
+      text: "Delete",
+      style: "destructive",
+      onPress: async () => {
+        try {
+          setIsDeleting(true);
+          await sendDeleteEmail(token);
+          Alert.alert(
+            "Deleted",
+            "A confirmation email has been sent to your registered email."
+          );
+        } catch (error) {
+          console.error(error);
+          Alert.alert("Error", "Failed to delete account");
+        } finally {
+          setIsDeleting(false);
+        }
       },
-    ]);
-  };
+    },
+  ]);
+};
 
   const updateField = (key, value) =>
     setProfile({ ...profile, [key]: value });
@@ -212,6 +249,14 @@ const Profile = () => {
           </View>
         </>
       )}
+      {/* Security Section */}
+<View style={styles.securitySection}>
+  <TwoFAScreen
+    is2FAEnabled={is2FAEnabled}
+    setIs2FAEnabled={setIs2FAEnabled}
+  />
+</View>
+
 
       {/* Danger Zone */}
       <View style={styles.dangerZone}>
@@ -349,6 +394,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#F5F5F5",
   },
+  securitySection: {
+  backgroundColor: "#F9F9F9",
+  padding: 20,
+  borderRadius: 10,
+  marginTop: 20,
+},
+
 });
 
 export default Profile;

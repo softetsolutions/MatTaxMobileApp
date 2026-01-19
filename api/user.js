@@ -27,6 +27,7 @@ export const fetchUserDetails = async (token,userId) => {
         city: data.city,
         postcode: data.postcode,
         country: data.country,
+        twoFAEnabled: data.twofa_enabled,
       };
     } catch (error) {
       console.error("Error fetching user details:", error);
@@ -84,7 +85,9 @@ export const fetchUserDetails = async (token,userId) => {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`, 
       },
-      body: JSON.stringify({ email }),
+      credentials: "include",
+      //,
+      // body: JSON.stringify({ email }),
     });
   
       const data = await response.json();
@@ -96,3 +99,42 @@ export const fetchUserDetails = async (token,userId) => {
       throw error;
     }
   };
+  export const confirmDeleteAccount = async (token) => {
+  try {
+    const response = await fetch(`${URI}/user/confirm-delete?token=${token}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+       credentials: "include", // optional, if backend wants it
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to delete account");
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Delete account error:", error);
+    throw error;
+  }
+};
+export const facebookLoginApi = async (accessToken) => {
+  const res = await fetch(`${URI}/auth/facebook-login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-client-type": "mobile",
+    },
+    body: JSON.stringify({ accessToken }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data?.error || "Facebook login failed");
+  }
+
+  return data; // { token, user } O
+};

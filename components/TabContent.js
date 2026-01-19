@@ -5,6 +5,7 @@ import Bin from "../pages/Bin";
 import AccountantPage from "../pages/AccountantPage";
 import Profile from "../pages/ProfilePage";
 
+
 export default function TabContent({ activeTab }) {
   switch (activeTab) {
     case "transactions":
